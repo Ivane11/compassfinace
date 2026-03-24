@@ -9,22 +9,28 @@ import { RotateCcw, Info, Save, Plus, Trash2, Edit3, X, Check, User, Wallet, Tag
 
 // Live exchange rates from exchangerate-api.com (XOF base)
 const EXCHANGE_API_KEY = '80624c26ecd6f0ef1a4dc6be';
-const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'CNY', 'AED'];
 const RATES_CACHE_KEY = 'cashcompass_exchange_rates';
-const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in ms (daily refresh)
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in ms
 
 // Fixed rate for EUR (CFA franc zone)
 const EUR_FIXED_RATE = 655.957; // 1 EUR = 655.957 FCFA
 
-const CURRENCIES = [
-  { code: 'FCFA', name: 'Franc CFA (XOF)', symbol: 'FCFA', flag: '🌍' },
-  { code: 'USD', name: 'Dollar Américain', symbol: '$', flag: '🇺🇸' },
-  { code: 'EUR', name: 'Euro', symbol: '€', flag: '🇪🇺' },
-  { code: 'GBP', name: 'Livre Sterling', symbol: '£', flag: '🇬🇧' },
-  { code: 'CAD', name: 'Dollar Canadien', symbol: 'C$', flag: '🇨🇦' },
-  { code: 'CNY', name: 'Yuan Chinois', symbol: '¥', flag: '🇨🇳' },
-  { code: 'AED', name: 'Dirham Emirati', symbol: 'د.إ', flag: '🇦🇪' },
-];
+// Currency flags map (common currencies)
+const CURRENCY_FLAGS: Record<string, string> = {
+  USD: '🇺🇸', EUR: '🇪🇺', GBP: '🇬🇧', JPY: '🇯🇵', CHF: '🇨🇭', CAD: '🇨🇦',
+  AUD: '🇦🇺', NZD: '🇳🇿', CNY: '🇨🇳', INR: '🇮🇳', MXN: '🇲🇽', BRL: '🇧🇷',
+  KRW: '🇰🇷', SGD: '🇸🇬', HKD: '🇭🇰', NOK: '🇳🇴', SEK: '🇸🇪', DKK: '🇩🇰',
+  PLN: '🇵🇱', ZAR: '🇿🇦', THB: '🇹🇭', NGN: '🇳🇬', TRY: '🇹🇷', AED: '🇦🇪',
+  MAD: '🇲🇦', SAR: '🇸🇦', PHP: '🇵🇭', MYR: '🇲🇾', IDR: '🇮🇩', VND: '🇻🇳',
+  EGP: '🇪🇬', PKR: '🇵🇰', BDT: '🇧🇩', LKR: '🇱🇰', NPR: '🇳🇵', QAR: '🇶🇦',
+  KWD: '🇰🇼', BHD: '🇧🇭', OMR: '🇴🇲', JOD: '🇯🇴', ILS: '🇮🇱', RUB: '🇷🇺',
+  UAH: '🇺🇦', CZK: '🇨🇿', HUF: '🇭🇺', RON: '🇷🇴', BGN: '🇧🇬', HRK: '🇭🇷',
+  XOF: '🌍', XAF: '🌍', GNF: '🇬🇳', GHS: '🇬🇭', XCD: '🌴', DOP: '🇩🇴',
+};
+
+const getCurrencyFlag = (code: string): string => {
+  return CURRENCY_FLAGS[code] || '💱';
+};
 
 // Cache helpers
 const getCachedRates = (): { rates: Record<string, number>; timestamp: number } | null => {
@@ -72,21 +78,22 @@ export default function SettingsPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
 
-  // Currency converter state - Live API
+  // Currency converter state - Full global support
   const [fcfaAmount, setFcfaAmount] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
   const [targetCurrency, setTargetCurrency] = useState('USD');
-  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
+  const [allCurrencies, setAllCurrencies] = useState<Record<string, number>>({});
   const [ratesLastUpdate, setRatesLastUpdate] = useState<string>('');
   const [ratesLoading, setRatesLoading] = useState(false);
   const [activeInput, setActiveInput] = useState<'fcfa' | 'target'>('fcfa');
+  const [currencySearch, setCurrencySearch] = useState('');
 
   // Fetch live exchange rates from exchangerate-api.com (XOF base)
   const fetchExchangeRates = async () => {
     // Check cache first (daily refresh)
     const cached = getCachedRates();
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
-      setExchangeRates(cached.rates);
+      setAllCurrencies(cached.rates);
       setRatesLastUpdate(new Date(cached.timestamp).toLocaleString('fr-FR', {
         day: '2-digit',
         month: '2-digit',
@@ -99,22 +106,14 @@ export default function SettingsPage() {
 
     setRatesLoading(true);
     try {
-      // API returns USD-based rates (1 USD = X.X XOF)
-      const response = await fetch(`https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/latest/USD`);
+      // Fetch all currencies from XOF base
+      const response = await fetch(`https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/latest/XOF`);
       const data = await response.json();
       if (data.result === 'success') {
-        // XOF rate: 565.6414 means 1 USD = 565.6414 XOF
-        // So 1 XOF = 1/565.6414 USD ≈ 0.001768 USD
-        const xofRate = data.conversion_rates.XOF; // 565.6414
-        const rates: Record<string, number> = {};
-        SUPPORTED_CURRENCIES.forEach(code => {
-          // Calculate XOF per unit of target currency
-          // e.g., for USD: 1 USD = xofRate XOF
-          rates[code] = xofRate / data.conversion_rates[code];
-        });
+        // Store all currencies from API
+        setAllCurrencies(data.conversion_rates);
         const timestamp = Date.now();
-        setExchangeRates(rates);
-        setCachedRates(rates, timestamp);
+        setCachedRates(data.conversion_rates, timestamp);
         const date = new Date(data.time_last_update_utc);
         setRatesLastUpdate(date.toLocaleString('fr-FR', {
           day: '2-digit',
@@ -128,7 +127,7 @@ export default function SettingsPage() {
       console.error('Failed to fetch exchange rates:', error);
       // Try to use cached data even if expired
       if (cached) {
-        setExchangeRates(cached.rates);
+        setAllCurrencies(cached.rates);
         setRatesLastUpdate('Mode hors-ligne');
       }
     }
@@ -215,10 +214,10 @@ export default function SettingsPage() {
     if (targetCurrency === 'EUR') {
       // Fixed rate for EUR
       return fcfaValue / EUR_FIXED_RATE;
-    } else if (exchangeRates[targetCurrency]) {
-      // Dynamic rate from API (API returns XOF per unit of target currency)
-      // So: target_amount = fcfa / rate
-      return fcfaValue / exchangeRates[targetCurrency];
+    } else if (allCurrencies[targetCurrency]) {
+      // API returns how many units of target currency per 1 XOF
+      // So: target_amount = fcfa * rate
+      return fcfaValue * allCurrencies[targetCurrency];
     }
     return 0;
   };
@@ -230,9 +229,10 @@ export default function SettingsPage() {
     if (targetCurrency === 'EUR') {
       // Fixed rate for EUR
       return targetValue * EUR_FIXED_RATE;
-    } else if (exchangeRates[targetCurrency]) {
-      // Dynamic rate from API
-      return targetValue * exchangeRates[targetCurrency];
+    } else if (allCurrencies[targetCurrency]) {
+      // API returns how many units of target currency per 1 XOF
+      // So: fcfa = target_amount / rate
+      return targetValue / allCurrencies[targetCurrency];
     }
     return 0;
   };
@@ -274,19 +274,29 @@ export default function SettingsPage() {
   // Get current rate for display
   const getCurrentRateDisplay = () => {
     if (targetCurrency === 'EUR') {
-      return `Taux fixe : 1€ = ${EUR_FIXED_RATE.toLocaleString('fr-FR')} FCFA`;
-    } else if (exchangeRates[targetCurrency]) {
-      return `Taux : 1 FCFA = ${(1 / exchangeRates[targetCurrency]).toFixed(5)} ${targetCurrency}`;
+      return `1 EUR = ${EUR_FIXED_RATE.toLocaleString('fr-FR')} FCFA`;
+    } else if (allCurrencies[targetCurrency]) {
+      // Show: 1 [Target] = X FCFA
+      const fcfaPerUnit = 1 / allCurrencies[targetCurrency];
+      return `1 ${targetCurrency} = ${fcfaPerUnit.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} FCFA`;
     }
     return '';
   };
 
-  // Get currency symbol
-  const getCurrencySymbol = (code: string) => {
-    return CURRENCIES.find(c => c.code === code)?.symbol || code;
+  // Get currency symbol (common symbols)
+  const getCurrencySymbol = (code: string): string => {
+    const symbols: Record<string, string> = {
+      USD: '$', EUR: '€', GBP: '£', JPY: '¥', CNY: '¥', KRW: '₩',
+      INR: '₹', BRL: 'R$', MXN: '$', PHP: '₱', THB: '฿', VND: '₫',
+      RUB: '₽', UAH: '₴', PLN: 'zł', CZK: 'Kč', HUF: 'Ft',
+    };
+    return symbols[code] || code;
   };
 
-  const targetCurrencyData = CURRENCIES.find(c => c.code === targetCurrency);
+  // Filter currencies for dropdown
+  const filteredCurrencies = Object.keys(allCurrencies).filter(code =>
+    code.toLowerCase().includes(currencySearch.toLowerCase())
+  ).sort();
 
   return (
     <div ref={formRef} className="space-y-5 animate-fade-in pb-8">
@@ -408,33 +418,44 @@ export default function SettingsPage() {
             />
           </div>
 
-          {/* Currency Selection */}
-          <div className="flex items-center gap-3">
-            <div className="flex-1 space-y-2">
-              <label className="text-sm text-muted-foreground">Devise cible</label>
-              <select
-                value={targetCurrency}
-                onChange={(e) => setTargetCurrency(e.target.value)}
-                className="w-full h-14 px-4 bg-secondary border-none rounded-xl text-base text-white appearance-none cursor-pointer"
-                style={{
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
-                  backgroundRepeat: 'no-repeat',
-                  backgroundPosition: 'right 12px center',
-                  backgroundSize: '20px',
-                }}
-              >
-                {CURRENCIES.filter(c => c.code !== 'FCFA').map((c) => (
-                  <option key={c.code} value={c.code}>
-                    {c.flag} {c.code} - {c.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Currency Selection with Search */}
+          <div className="space-y-2">
+            <label className="text-sm text-muted-foreground">🔍 Rechercher une devise</label>
+            <Input
+              type="text"
+              value={currencySearch}
+              onChange={(e) => setCurrencySearch(e.target.value)}
+              placeholder="Ex: THB, NGN, TRY..."
+              className="bg-secondary border-none text-base"
+            />
+            <select
+              value={targetCurrency}
+              onChange={(e) => setTargetCurrency(e.target.value)}
+              className="w-full h-14 px-4 bg-secondary border-none rounded-xl text-base text-white appearance-none cursor-pointer"
+              style={{
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                backgroundRepeat: 'no-repeat',
+                backgroundPosition: 'right 12px center',
+                backgroundSize: '20px',
+              }}
+            >
+              {filteredCurrencies.length > 0 ? filteredCurrencies.map((code) => (
+                <option key={code} value={code}>
+                  {getCurrencyFlag(code)} {code}
+                </option>
+              )) : Object.keys(allCurrencies).sort().map((code) => (
+                <option key={code} value={code}>
+                  {getCurrencyFlag(code)} {code}
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Target Currency Input */}
           <div className="space-y-2">
-            <label className="text-sm text-muted-foreground">{targetCurrencyData?.flag} {targetCurrencyData?.code} ({targetCurrencyData?.symbol})</label>
+            <label className="text-sm text-muted-foreground">
+              {getCurrencyFlag(targetCurrency)} {targetCurrency} ({getCurrencySymbol(targetCurrency)})
+            </label>
             <Input
               type="text"
               inputMode="decimal"
