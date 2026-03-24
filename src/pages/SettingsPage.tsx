@@ -10,6 +10,8 @@ import { RotateCcw, Info, Save, Plus, Trash2, Edit3, X, Check, User, Wallet, Tag
 // Live exchange rates from exchangerate-api.com (XOF base)
 const EXCHANGE_API_KEY = '80624c26ecd6f0ef1a4dc6be';
 const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'CNY', 'AED'];
+const RATES_CACHE_KEY = 'cashcompass_exchange_rates';
+const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in ms
 
 const CURRENCIES = [
   { code: 'FCFA', name: 'Franc CFA (XOF)', symbol: 'FCFA', flag: '🌍' },
@@ -20,6 +22,23 @@ const CURRENCIES = [
   { code: 'CNY', name: 'Yuan Chinois', symbol: '¥', flag: '🇨🇳' },
   { code: 'AED', name: 'Dirham Emirati', symbol: 'د.إ', flag: '🇦🇪' },
 ];
+
+// Cache helpers
+const getCachedRates = (): { rates: Record<string, number>; timestamp: number } | null => {
+  try {
+    const cached = localStorage.getItem(RATES_CACHE_KEY);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch { }
+  return null;
+};
+
+const setCachedRates = (rates: Record<string, number>, timestamp: number) => {
+  try {
+    localStorage.setItem(RATES_CACHE_KEY, JSON.stringify({ rates, timestamp }));
+  } catch { }
+};
 
 const THEMES: { id: Theme; name: string; description: string; icon: React.ReactNode }[] = [
   {
@@ -58,22 +77,35 @@ export default function SettingsPage() {
   const [ratesLastUpdate, setRatesLastUpdate] = useState<string>('');
   const [ratesLoading, setRatesLoading] = useState(false);
 
-  // Fetch live exchange rates from exchangerate-api.com
+  // Fetch live exchange rates from exchangerate-api.com (XOF base)
   const fetchExchangeRates = async () => {
+    // Check cache first
+    const cached = getCachedRates();
+    if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+      setExchangeRates(cached.rates);
+      setRatesLastUpdate(new Date(cached.timestamp).toLocaleString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }));
+      return;
+    }
+
     setRatesLoading(true);
     try {
-      const response = await fetch(`https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/latest/USD`);
+      const response = await fetch(`https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/latest/XOF`);
       const data = await response.json();
       if (data.result === 'success') {
-        // API returns rates from USD base, we need XOF rates
-        // XOF rate: 565.6414 XOF = 1 USD, so 1 XOF = 1/565.6414 USD
-        const xofToUsd = 1 / data.conversion_rates.XOF;
+        // API returns XOF-based rates directly
         const rates: Record<string, number> = {};
         SUPPORTED_CURRENCIES.forEach(code => {
-          // Convert from XOF to target: (amount in XOF) * (USD per XOF) * (target per USD)
-          rates[code] = xofToUsd * data.conversion_rates[code];
+          rates[code] = data.conversion_rates[code];
         });
+        const timestamp = Date.now();
         setExchangeRates(rates);
+        setCachedRates(rates, timestamp);
         const date = new Date(data.time_last_update_utc);
         setRatesLastUpdate(date.toLocaleString('fr-FR', {
           day: '2-digit',
@@ -85,6 +117,11 @@ export default function SettingsPage() {
       }
     } catch (error) {
       console.error('Failed to fetch exchange rates:', error);
+      // Try to use cached data even if expired
+      if (cached) {
+        setExchangeRates(cached.rates);
+        setRatesLastUpdate('Mode hors-ligne');
+      }
     }
     setRatesLoading(false);
   };
@@ -394,7 +431,7 @@ export default function SettingsPage() {
         )}
 
         <p className="text-xs text-muted-foreground/60 text-center">
-          💡 Taux de change en temps réel via exchangerate-api.com
+          💡 Taux en temps réel (XOF) • Mode hors-ligne activé
         </p>
       </div>
 
