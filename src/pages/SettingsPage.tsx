@@ -163,7 +163,15 @@ export default function SettingsPage() {
 
     // Convert from FCFA to target currency using live rates
     const result = numAmount * exchangeRates[toCurrency];
-    return result.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    
+    // Show more decimals for small amounts, fewer for larger amounts
+    if (result < 0.01) {
+      return result.toLocaleString('fr-FR', { minimumFractionDigits: 6, maximumFractionDigits: 6 });
+    } else if (result < 1) {
+      return result.toLocaleString('fr-FR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+    } else {
+      return result.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
   };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
