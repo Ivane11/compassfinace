@@ -198,22 +198,24 @@ export default function SettingsPage() {
     }
   };
 
-  // Currency converter - using live API rates
+  // Currency converter - using live API rates (XOF base)
   const convertCurrency = () => {
     const numAmount = parseFormattedAmount(amount);
     if (numAmount === 0 || !exchangeRates[toCurrency]) return '0.00';
 
-    // Convert from FCFA to target currency using live rates
+    // Convert from FCFA to target currency: Montant_XOF * Taux_Devise
+    // The API returns how many units of target currency per 1 XOF
     const result = numAmount * exchangeRates[toCurrency];
 
-    // Show more decimals for small amounts, fewer for larger amounts
-    if (result < 0.01) {
-      return result.toLocaleString('fr-FR', { minimumFractionDigits: 6, maximumFractionDigits: 6 });
-    } else if (result < 1) {
-      return result.toLocaleString('fr-FR', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
-    } else {
-      return result.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    }
+    // Always show 2 decimal places for USD, EUR, GBP, etc.
+    return result.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  // Get the current exchange rate for display
+  const getCurrentRate = () => {
+    if (!exchangeRates[toCurrency]) return '';
+    const rate = exchangeRates[toCurrency];
+    return `1 000 FCFA = ${(1000 * rate).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${toCurrency}`;
   };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -427,11 +429,16 @@ export default function SettingsPage() {
             <p className="text-lg text-muted-foreground mt-1">
               {toCurrencyData?.flag} {toCurrency}
             </p>
+            {ratesLastUpdate && (
+              <p className="text-xs text-muted-foreground/70 mt-3">
+                {getCurrentRate()}
+              </p>
+            )}
           </div>
         )}
 
         <p className="text-xs text-muted-foreground/60 text-center">
-          💡 Taux en temps réel (XOF) • Mode hors-ligne activé
+          💡 Taux de change en temps réel (XOF) • Mode hors-ligne activé
         </p>
       </div>
 
