@@ -10,14 +10,11 @@ import IntroPage from '@/pages/IntroPage';
 
 const Index = () => {
   const [tab, setTab] = useState<Tab>('dashboard');
-  const [showIntro, setShowIntro] = useState(false);
+  const [showIntro, setShowIntro] = useState(true); // Always show intro first
 
   useEffect(() => {
-    // Check if intro has been seen before
-    const introSeen = localStorage.getItem('cashcompass_intro_seen');
-    if (!introSeen) {
-      setShowIntro(true);
-    }
+    // Intro page always shows on app launch
+    // The localStorage check is removed so it appears every time
   }, []);
 
   const handleIntroComplete = () => {

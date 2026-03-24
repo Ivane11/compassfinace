@@ -33,7 +33,7 @@ export default function IntroPage({ onComplete }: IntroPageProps) {
     }, []);
 
     const handleGetStarted = () => {
-        localStorage.setItem('cashcompass_intro_seen', 'true');
+        // Don't save to localStorage - show intro every time
         onComplete();
     };
 
