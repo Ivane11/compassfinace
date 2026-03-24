@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button';
 import { formatFCFA, formatAmount, parseFormattedAmount } from '@/lib/finance';
 import { RotateCcw, Info, Save, Plus, Trash2, Edit3, X, Check, User, Wallet, Tag, Palette, ArrowRightLeft, Sun, Moon, Sunset, RefreshCw } from 'lucide-react';
 
-// Live exchange rates from open.er-api.com (XOF base)
+// Live exchange rates from exchangerate-api.com (XOF base)
+const EXCHANGE_API_KEY = '80624c26ecd6f0ef1a4dc6be';
 const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'CNY', 'AED'];
 
 const CURRENCIES = [
-  { code: 'FCFA', name: 'Franc CFA', symbol: 'FCFA', flag: '🌍' },
+  { code: 'FCFA', name: 'Franc CFA (XOF)', symbol: 'FCFA', flag: '🌍' },
   { code: 'USD', name: 'Dollar Américain', symbol: '$', flag: '🇺🇸' },
   { code: 'EUR', name: 'Euro', symbol: '€', flag: '🇪🇺' },
   { code: 'GBP', name: 'Livre Sterling', symbol: '£', flag: '🇬🇧' },
@@ -57,16 +58,20 @@ export default function SettingsPage() {
   const [ratesLastUpdate, setRatesLastUpdate] = useState<string>('');
   const [ratesLoading, setRatesLoading] = useState(false);
 
-  // Fetch live exchange rates
+  // Fetch live exchange rates from exchangerate-api.com
   const fetchExchangeRates = async () => {
     setRatesLoading(true);
     try {
-      const response = await fetch('https://open.er-api.com/v6/latest/XOF');
+      const response = await fetch(`https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/latest/USD`);
       const data = await response.json();
       if (data.result === 'success') {
+        // API returns rates from USD base, we need XOF rates
+        // XOF rate: 565.6414 XOF = 1 USD, so 1 XOF = 1/565.6414 USD
+        const xofToUsd = 1 / data.conversion_rates.XOF;
         const rates: Record<string, number> = {};
         SUPPORTED_CURRENCIES.forEach(code => {
-          rates[code] = data.rates[code];
+          // Convert from XOF to target: (amount in XOF) * (USD per XOF) * (target per USD)
+          rates[code] = xofToUsd * data.conversion_rates[code];
         });
         setExchangeRates(rates);
         const date = new Date(data.time_last_update_utc);
@@ -163,7 +168,7 @@ export default function SettingsPage() {
 
     // Convert from FCFA to target currency using live rates
     const result = numAmount * exchangeRates[toCurrency];
-    
+
     // Show more decimals for small amounts, fewer for larger amounts
     if (result < 0.01) {
       return result.toLocaleString('fr-FR', { minimumFractionDigits: 6, maximumFractionDigits: 6 });
@@ -389,7 +394,7 @@ export default function SettingsPage() {
         )}
 
         <p className="text-xs text-muted-foreground/60 text-center">
-          💡 Taux de change en temps réel via open.er-api.com
+          💡 Taux de change en temps réel via exchangerate-api.com
         </p>
       </div>
 
