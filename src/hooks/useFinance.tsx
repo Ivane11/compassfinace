@@ -7,6 +7,7 @@ interface FinanceContextType {
   settings: AppSettings;
   addTransaction: (tx: Transaction) => void;
   removeTransaction: (id: string) => void;
+  togglePaid: (id: string) => void;
   updateSettings: (s: AppSettings) => void;
   updateFirstName: (name: string) => void;
   addCategory: (name: string, icon?: string) => void;
@@ -34,6 +35,12 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
 
   const removeTransaction = useCallback((id: string) => {
     setTransactions(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  const togglePaid = useCallback((id: string) => {
+    setTransactions(prev => prev.map(t => 
+      t.id === id ? { ...t, isPaid: !t.isPaid } : t
+    ));
   }, []);
 
   const updateSettings = useCallback((s: AppSettings) => {
@@ -79,6 +86,7 @@ export function FinanceProvider({ children }: { children: React.ReactNode }) {
       settings,
       addTransaction,
       removeTransaction,
+      togglePaid,
       updateSettings,
       updateFirstName,
       addCategory,

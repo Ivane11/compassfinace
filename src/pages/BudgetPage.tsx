@@ -5,7 +5,7 @@ import { Transaction, Recurrence, CATEGORY_LABELS } from '@/lib/types';
 import { generateId, formatFCFA, totalIncome, totalExpenses, categorySpending, monthlyComparison, predictEndOfMonth, autoBudget, parseFormattedAmount, formatAmount } from '@/lib/finance';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Trash2, ArrowDownRight, TrendingDown, Check } from 'lucide-react';
+import { Plus, Trash2, ArrowDownRight, TrendingDown, Check, ChevronDown, ChevronUp, ListChecks } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 'recharts';
 
 // SVG Progress Ring
@@ -22,8 +22,9 @@ function ProgressRing({ percent, color, size = 64, strokeWidth = 5 }: { percent:
 }
 
 export default function BudgetPage() {
-  const { transactions, addTransaction, removeTransaction, categories } = useFinance();
+  const { transactions, addTransaction, removeTransaction, togglePaid, categories } = useFinance();
   const [showForm, setShowForm] = useState(false);
+  const [showChecklist, setShowChecklist] = useState(false);
   const [source, setSource] = useState('');
   const [amount, setAmount] = useState('');
   const [category, setCategory] = useState('autre');
@@ -90,6 +91,12 @@ export default function BudgetPage() {
     return CATEGORY_LABELS[catId] || catId;
   };
 
+  // Calculate totals for checklist
+  const totalExpensesAmount = expenses.reduce((sum, tx) => sum + tx.amount, 0);
+  const paidExpenses = expenses.filter(tx => tx.isPaid);
+  const paidAmount = paidExpenses.reduce((sum, tx) => sum + tx.amount, 0);
+  const unpaidAmount = totalExpensesAmount - paidAmount;
+
   return (
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
@@ -112,6 +119,78 @@ export default function BudgetPage() {
         <p className="text-financial font-bold text-expense">{formatFCFA(predicted)}</p>
         <p className="text-sm text-muted-foreground mt-1">de dépenses totales estimées au rythme actuel</p>
       </div>
+
+      {/* Checklist Accordion - Glassmorphism */}
+      {expenses.length > 0 && (
+        <div className="glass-card overflow-hidden">
+          <button
+            onClick={() => setShowChecklist(!showChecklist)}
+            className="w-full flex items-center justify-between p-5 text-left hover:bg-white/5 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <ListChecks size={22} className="text-primary" />
+              <div>
+                <p className="text-lg font-semibold text-white">Ma Check-list de suivi</p>
+                <p className="text-sm text-muted-foreground">
+                  {paidExpenses.length}/{expenses.length} dépenses payées
+                </p>
+              </div>
+            </div>
+            {showChecklist ? (
+              <ChevronUp size={24} className="text-primary" />
+            ) : (
+              <ChevronDown size={24} className="text-muted-foreground" />
+            )}
+          </button>
+
+          {showChecklist && (
+            <div className="px-5 pb-5 space-y-4 animate-scale-in">
+              {/* Summary */}
+              <div className="flex justify-between items-center p-4 rounded-xl glass">
+                <div className="text-center flex-1">
+                  <p className="text-xs text-muted-foreground">Total payé</p>
+                  <p className="text-lg font-bold text-income">{formatFCFA(paidAmount)}</p>
+                </div>
+                <div className="w-px h-10 bg-white/10" />
+                <div className="text-center flex-1">
+                  <p className="text-xs text-muted-foreground">Reste à payer</p>
+                  <p className="text-lg font-bold text-expense">{formatFCFA(unpaidAmount)}</p>
+                </div>
+              </div>
+
+              {/* Checklist Items */}
+              <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                {expenses.map(tx => (
+                  <label
+                    key={tx.id}
+                    className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${
+                      tx.isPaid ? 'glass bg-income/5' : 'glass hover:bg-white/5'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={tx.isPaid || false}
+                      onChange={() => togglePaid(tx.id)}
+                      className="w-6 h-6 rounded-md accent-primary cursor-pointer"
+                    />
+                    <div className="flex-1">
+                      <p className={`text-lg font-medium ${tx.isPaid ? 'line-through text-muted-foreground' : 'text-white'}`}>
+                        {tx.source}
+                      </p>
+                      <p className={`text-sm ${tx.isPaid ? 'text-muted-foreground/50' : 'text-muted-foreground'}`}>
+                        {getCategoryLabel(tx.category || 'autre')} · {new Date(tx.date).toLocaleDateString('fr-FR')}
+                      </p>
+                    </div>
+                    <span className={`text-xl font-bold ${tx.isPaid ? 'text-income' : 'text-expense'}`}>
+                      {tx.isPaid && '✓ '}{formatFCFA(tx.amount)}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Form - iPhone keyboard optimized - Glassmorphism */}
       {showForm && (
@@ -231,18 +310,32 @@ export default function BudgetPage() {
             {expenses.map(tx => (
               <div key={tx.id} className="flex items-center justify-between p-3 rounded-xl glass">
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full bg-expense/15 flex items-center justify-center">
-                    <ArrowDownRight size={20} className="text-expense" />
+                  <button
+                    onClick={() => togglePaid(tx.id)}
+                    className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all ${
+                      tx.isPaid 
+                        ? 'bg-income border-income text-black' 
+                        : 'border-muted-foreground/30 hover:border-primary'
+                    }`}
+                  >
+                    {tx.isPaid && <Check size={16} />}
+                  </button>
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center ${
+                    tx.isPaid ? 'bg-income/10' : 'bg-expense/15'
+                  }`}>
+                    <ArrowDownRight size={20} className={tx.isPaid ? 'text-income' : 'text-expense'} />
                   </div>
                   <div>
-                    <p className="text-body font-medium text-white">{tx.source}</p>
+                    <p className={`text-body font-medium ${tx.isPaid ? 'line-through text-muted-foreground' : 'text-white'}`}>{tx.source}</p>
                     <p className="text-sm text-muted-foreground">
                       {getCategoryLabel(tx.category || 'autre')} · {new Date(tx.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
                     </p>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="text-lg font-bold text-expense">-{formatFCFA(tx.amount)}</span>
+                  <span className={`text-lg font-bold ${tx.isPaid ? 'text-income' : 'text-expense'}`}>
+                    {tx.isPaid ? '✓ ' : '-'}{formatFCFA(tx.amount)}
+                  </span>
                   <button 
                     onClick={() => removeTransaction(tx.id)} 
                     className="w-9 h-9 rounded-full glass flex items-center justify-center text-muted-foreground hover:text-expense transition-colors"

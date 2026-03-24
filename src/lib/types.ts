@@ -27,6 +27,7 @@ export interface Transaction {
   date: string; // ISO string
   recurrence: Recurrence;
   createdAt: string;
+  isPaid?: boolean; // For expense tracking checklist
 }
 
 export interface BudgetAllocation {
