@@ -5,7 +5,7 @@ import { Transaction, Recurrence } from '@/lib/types';
 import { generateId, formatFCFA, autoBudget, parseFormattedAmount, formatAmount } from '@/lib/finance';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Trash2, ArrowUpRight, RefreshCw, Check } from 'lucide-react';
+import { Plus, Trash2, ArrowUpRight, RefreshCw, Check, TrendingUp } from 'lucide-react';
 
 const recurrenceLabels: Record<Recurrence, string> = {
   unique: 'Unique',
@@ -16,6 +16,9 @@ const recurrenceLabels: Record<Recurrence, string> = {
 export default function RevenusPage() {
   const { transactions, addTransaction, removeTransaction } = useFinance();
   const incomes = transactions.filter(t => t.type === 'income');
+
+  // Calculate total income
+  const totalIncome = incomes.reduce((sum, tx) => sum + tx.amount, 0);
 
   const [showForm, setShowForm] = useState(false);
   const [source, setSource] = useState('');
@@ -69,6 +72,15 @@ export default function RevenusPage() {
         >
           <Plus size={18} /> Ajouter
         </Button>
+      </div>
+
+      {/* Total des revenus - Glassmorphism */}
+      <div className="glass-card p-5">
+        <div className="flex items-center gap-2 mb-2">
+          <TrendingUp size={20} className="text-income" />
+          <span className="text-sm font-medium text-muted-foreground">Total de vos revenus</span>
+        </div>
+        <p className="text-financial font-bold text-income">+{formatFCFA(totalIncome)}</p>
       </div>
 
       {/* Budget suggestion - Glassmorphism */}
