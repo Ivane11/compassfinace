@@ -13,6 +13,9 @@ const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'CNY', 'AED'];
 const RATES_CACHE_KEY = 'cashcompass_exchange_rates';
 const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in ms (daily refresh)
 
+// Fixed rate for EUR (CFA franc zone)
+const EUR_FIXED_RATE = 655.957; // 1 EUR = 655.957 FCFA
+
 const CURRENCIES = [
   { code: 'FCFA', name: 'Franc CFA (XOF)', symbol: 'FCFA', flag: '🌍' },
   { code: 'USD', name: 'Dollar Américain', symbol: '$', flag: '🇺🇸' },
@@ -70,12 +73,13 @@ export default function SettingsPage() {
   const [profileSaved, setProfileSaved] = useState(false);
 
   // Currency converter state - Live API
-  const [amount, setAmount] = useState('');
-  const [fromCurrency, setFromCurrency] = useState('FCFA');
-  const [toCurrency, setToCurrency] = useState('USD');
+  const [fcfaAmount, setFcfaAmount] = useState('');
+  const [targetAmount, setTargetAmount] = useState('');
+  const [targetCurrency, setTargetCurrency] = useState('USD');
   const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
   const [ratesLastUpdate, setRatesLastUpdate] = useState<string>('');
   const [ratesLoading, setRatesLoading] = useState(false);
+  const [activeInput, setActiveInput] = useState<'fcfa' | 'target'>('fcfa');
 
   // Fetch live exchange rates from exchangerate-api.com (XOF base)
   const fetchExchangeRates = async () => {
@@ -95,14 +99,18 @@ export default function SettingsPage() {
 
     setRatesLoading(true);
     try {
-      // API returns XOF-based rates directly
-      const response = await fetch(`https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/latest/XOF`);
+      // API returns USD-based rates (1 USD = X.X XOF)
+      const response = await fetch(`https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/latest/USD`);
       const data = await response.json();
       if (data.result === 'success') {
-        // API returns direct XOF rates (1 XOF = 0.00163 USD, etc.)
+        // XOF rate: 565.6414 means 1 USD = 565.6414 XOF
+        // So 1 XOF = 1/565.6414 USD ≈ 0.001768 USD
+        const xofRate = data.conversion_rates.XOF; // 565.6414
         const rates: Record<string, number> = {};
         SUPPORTED_CURRENCIES.forEach(code => {
-          rates[code] = data.conversion_rates[code];
+          // Calculate XOF per unit of target currency
+          // e.g., for USD: 1 USD = xofRate XOF
+          rates[code] = xofRate / data.conversion_rates[code];
         });
         const timestamp = Date.now();
         setExchangeRates(rates);
@@ -199,46 +207,86 @@ export default function SettingsPage() {
     }
   };
 
-  // Currency converter - using live API rates (XOF base)
-  const convertCurrency = () => {
-    const numAmount = parseFormattedAmount(amount);
-    if (numAmount === 0 || !exchangeRates[toCurrency]) return '0.00';
+  // Bi-directional conversion functions
+  // Convert FCFA to target currency
+  const convertFromFcfa = (fcfaValue: number): number => {
+    if (fcfaValue === 0) return 0;
 
-    // Convert from FCFA to target currency: Montant_XOF * Taux_Devise
-    // The API returns direct rate (1 XOF = 0.00163 USD)
-    const result = numAmount * exchangeRates[toCurrency];
-    
-    // Always show 2 decimal places
-    return result.toFixed(2);
+    if (targetCurrency === 'EUR') {
+      // Fixed rate for EUR
+      return fcfaValue / EUR_FIXED_RATE;
+    } else if (exchangeRates[targetCurrency]) {
+      // Dynamic rate from API (API returns XOF per unit of target currency)
+      // So: target_amount = fcfa / rate
+      return fcfaValue / exchangeRates[targetCurrency];
+    }
+    return 0;
   };
 
-  // Get the current exchange rate for display
-  const getCurrentRate = () => {
-    if (!exchangeRates[toCurrency]) return '';
-    const rate = exchangeRates[toCurrency];
-    return `Taux : 1 FCFA = ${rate.toFixed(5)} ${toCurrency}`;
+  // Convert target currency to FCFA
+  const convertToFcfa = (targetValue: number): number => {
+    if (targetValue === 0) return 0;
+
+    if (targetCurrency === 'EUR') {
+      // Fixed rate for EUR
+      return targetValue * EUR_FIXED_RATE;
+    } else if (exchangeRates[targetCurrency]) {
+      // Dynamic rate from API
+      return targetValue * exchangeRates[targetCurrency];
+    }
+    return 0;
   };
 
-  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle FCFA input change
+  const handleFcfaChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/[^\d]/g, '');
+    setActiveInput('fcfa');
     if (raw) {
-      setAmount(formatAmount(parseInt(raw, 10)));
+      const numValue = parseInt(raw, 10);
+      setFcfaAmount(formatAmount(numValue));
+      // Calculate target amount
+      const target = convertFromFcfa(numValue);
+      setTargetAmount(target.toFixed(2));
     } else {
-      setAmount('');
+      setFcfaAmount('');
+      setTargetAmount('');
     }
   };
 
-  const handleSwapCurrencies = () => {
-    setFromCurrency(toCurrency);
-    setToCurrency(fromCurrency);
+  // Handle target currency input change
+  const handleTargetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/[^\d.]/g, '');
+    setActiveInput('target');
+    if (raw) {
+      const numValue = parseFloat(raw);
+      if (!isNaN(numValue)) {
+        setTargetAmount(raw);
+        // Calculate FCFA amount
+        const fcfa = convertToFcfa(numValue);
+        setFcfaAmount(formatAmount(Math.round(fcfa)));
+      }
+    } else {
+      setTargetAmount('');
+      setFcfaAmount('');
+    }
   };
 
+  // Get current rate for display
+  const getCurrentRateDisplay = () => {
+    if (targetCurrency === 'EUR') {
+      return `Taux fixe : 1€ = ${EUR_FIXED_RATE.toLocaleString('fr-FR')} FCFA`;
+    } else if (exchangeRates[targetCurrency]) {
+      return `Taux : 1 FCFA = ${(1 / exchangeRates[targetCurrency]).toFixed(5)} ${targetCurrency}`;
+    }
+    return '';
+  };
+
+  // Get currency symbol
   const getCurrencySymbol = (code: string) => {
     return CURRENCIES.find(c => c.code === code)?.symbol || code;
   };
 
-  const fromCurrencyData = CURRENCIES.find(c => c.code === fromCurrency);
-  const toCurrencyData = CURRENCIES.find(c => c.code === toCurrency);
+  const targetCurrencyData = CURRENCIES.find(c => c.code === targetCurrency);
 
   return (
     <div ref={formRef} className="space-y-5 animate-fade-in pb-8">
@@ -333,114 +381,88 @@ export default function SettingsPage() {
           <h3 className="text-card-title font-semibold text-white">Convertisseur ConnectWise</h3>
         </div>
         <p className="text-sm text-muted-foreground">
-          Convertissez instantanément entre devises
+          Saisie bidirectionnelle • Taux en temps réel
         </p>
 
         {/* Live Rate Indicator */}
         {ratesLastUpdate && (
           <div className="flex items-center justify-center gap-2 text-xs text-primary/80">
             <RefreshCw size={12} className={ratesLoading ? 'animate-spin' : ''} />
-            <span>🔴 Taux mis à jour en direct</span>
+            <span>🔴 Taux mis à jour</span>
             <span className="text-muted-foreground">• {ratesLastUpdate}</span>
           </div>
         )}
 
-        {/* Amount Input */}
-        <div className="space-y-2">
-          <label className="text-sm text-muted-foreground">Montant</label>
-          <Input
-            ref={(el) => {
-              if (el) inputRefs.current.set('amount', el);
-              registerInput(el);
-            }}
-            type="text"
-            inputMode="numeric"
-            value={amount}
-            onChange={handleAmountChange}
-            placeholder="0"
-            className="input-iphone bg-secondary border-none text-2xl font-bold text-center"
-            onFocus={() => registerInput(inputRefs.current.get('amount') || null)}
-          />
-        </div>
-
-        {/* Currency Selection */}
-        <div className="flex items-center gap-3">
-          {/* From Currency */}
-          <div className="flex-1 space-y-2">
-            <label className="text-sm text-muted-foreground">De</label>
-            <select
-              value={fromCurrency}
-              onChange={(e) => setFromCurrency(e.target.value)}
-              className="w-full h-14 px-4 bg-secondary border-none rounded-xl text-base text-white appearance-none cursor-pointer"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 12px center',
-                backgroundSize: '20px',
-              }}
-            >
-              {CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.flag} {c.code} - {c.name}
-                </option>
-              ))}
-            </select>
+        {/* Bi-directional Input Fields */}
+        <div className="space-y-4">
+          {/* FCFA Input */}
+          <div className="space-y-2">
+            <label className="text-sm text-muted-foreground">🌍 FCFA (Franc CFA)</label>
+            <Input
+              type="text"
+              inputMode="numeric"
+              value={fcfaAmount}
+              onChange={handleFcfaChange}
+              placeholder="0"
+              className="input-iphone bg-secondary border-none text-2xl font-bold text-center"
+            />
           </div>
 
-          {/* Swap Button */}
-          <button
-            onClick={handleSwapCurrencies}
-            className="mt-6 w-12 h-12 rounded-full glass flex items-center justify-center hover:bg-primary/20 transition-colors"
-          >
-            <ArrowRightLeft size={20} className="text-primary" />
-          </button>
+          {/* Currency Selection */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 space-y-2">
+              <label className="text-sm text-muted-foreground">Devise cible</label>
+              <select
+                value={targetCurrency}
+                onChange={(e) => setTargetCurrency(e.target.value)}
+                className="w-full h-14 px-4 bg-secondary border-none rounded-xl text-base text-white appearance-none cursor-pointer"
+                style={{
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'no-repeat',
+                  backgroundPosition: 'right 12px center',
+                  backgroundSize: '20px',
+                }}
+              >
+                {CURRENCIES.filter(c => c.code !== 'FCFA').map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.flag} {c.code} - {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
 
-          {/* To Currency */}
-          <div className="flex-1 space-y-2">
-            <label className="text-sm text-muted-foreground">Vers</label>
-            <select
-              value={toCurrency}
-              onChange={(e) => setToCurrency(e.target.value)}
-              className="w-full h-14 px-4 bg-secondary border-none rounded-xl text-base text-white appearance-none cursor-pointer"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white' stroke-width='2'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
-                backgroundRepeat: 'no-repeat',
-                backgroundPosition: 'right 12px center',
-                backgroundSize: '20px',
-              }}
-            >
-              {CURRENCIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {c.flag} {c.code} - {c.name}
-                </option>
-              ))}
-            </select>
+          {/* Target Currency Input */}
+          <div className="space-y-2">
+            <label className="text-sm text-muted-foreground">{targetCurrencyData?.flag} {targetCurrencyData?.code} ({targetCurrencyData?.symbol})</label>
+            <Input
+              type="text"
+              inputMode="decimal"
+              value={targetAmount}
+              onChange={handleTargetChange}
+              placeholder="0"
+              className="input-iphone bg-secondary border-none text-2xl font-bold text-center"
+            />
           </div>
         </div>
 
-        {/* Result Display */}
-        {amount && (
-          <div className="mt-6 p-6 rounded-2xl glass bg-primary/5 border-primary/20 text-center">
-            <p className="text-sm text-muted-foreground mb-2">
-              {fromCurrencyData?.flag} {parseFormattedAmount(amount).toLocaleString('fr-FR')} {fromCurrency}
+        {/* Rate Display */}
+        {getCurrentRateDisplay() && (
+          <div className="p-3 rounded-xl glass bg-primary/5 text-center">
+            <p className="text-xs text-muted-foreground">
+              {getCurrentRateDisplay()}
             </p>
-            <p className="text-3xl font-black text-primary">
-              {getCurrencySymbol(toCurrency)} {convertCurrency()}
-            </p>
-            <p className="text-lg text-muted-foreground mt-1">
-              {toCurrencyData?.flag} {toCurrency}
-            </p>
-            {ratesLastUpdate && (
-              <p className="text-xs text-muted-foreground/70 mt-3">
-                {getCurrentRate()}
-              </p>
-            )}
           </div>
         )}
 
-        <p className="text-xs text-muted-foreground/60 text-center">
-          💡 Taux de change en temps réel (XOF) • Mode hors-ligne activé
-        </p>
+        {/* EUR Fixed Rate Note */}
+        {targetCurrency === 'EUR' && (
+          <div className="p-3 rounded-xl glass bg-income/10 text-center">
+            <p className="text-xs text-income">
+              💡 Taux fixe officiel : 1€ = 655,96 FCFA
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Default Income - Kept for backward compatibility */}
