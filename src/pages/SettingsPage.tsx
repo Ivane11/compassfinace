@@ -5,52 +5,18 @@ import { useTheme, Theme } from '@/hooks/useTheme';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { formatFCFA, formatAmount, parseFormattedAmount } from '@/lib/finance';
-import { RotateCcw, Info, Save, Plus, Trash2, Edit3, X, Check, User, Wallet, Tag, Palette, ArrowRightLeft, Sun, Moon, Sunset } from 'lucide-react';
+import { RotateCcw, Info, Save, Plus, Trash2, Edit3, X, Check, User, Wallet, Tag, Palette, ArrowRightLeft, Sun, Moon, Sunset, RefreshCw } from 'lucide-react';
 
-// Exchange rates (fixed rates for simulation - in production would use API)
-const EXCHANGE_RATES: Record<string, number> = {
-  FCFA: 1,
-  USD: 0.0016,
-  EUR: 0.0015,
-  GBP: 0.0013,
-  JPY: 0.24,
-  CAD: 0.0022,
-  CHF: 0.0014,
-  CNY: 0.012,
-  INR: 0.13,
-  MXN: 0.028,
-  BRL: 0.0078,
-  KRW: 2.14,
-  SGD: 0.0022,
-  AUD: 0.0025,
-  NZD: 0.0027,
-  SEK: 0.017,
-  NOK: 0.017,
-  DKK: 0.011,
-  ZAR: 0.029,
-  AED: 0.0059,
-};
+// Live exchange rates from open.er-api.com (XOF base)
+const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'CNY', 'AED'];
 
 const CURRENCIES = [
   { code: 'FCFA', name: 'Franc CFA', symbol: 'FCFA', flag: '🌍' },
   { code: 'USD', name: 'Dollar Américain', symbol: '$', flag: '🇺🇸' },
   { code: 'EUR', name: 'Euro', symbol: '€', flag: '🇪🇺' },
   { code: 'GBP', name: 'Livre Sterling', symbol: '£', flag: '🇬🇧' },
-  { code: 'JPY', name: 'Yen Japonais', symbol: '¥', flag: '🇯🇵' },
   { code: 'CAD', name: 'Dollar Canadien', symbol: 'C$', flag: '🇨🇦' },
-  { code: 'CHF', name: 'Franc Suisse', symbol: 'CHF', flag: '🇨🇭' },
   { code: 'CNY', name: 'Yuan Chinois', symbol: '¥', flag: '🇨🇳' },
-  { code: 'INR', name: 'Roupie Indienne', symbol: '₹', flag: '🇮🇳' },
-  { code: 'MXN', name: 'Peso Mexicain', symbol: '$', flag: '🇲🇽' },
-  { code: 'BRL', name: 'Real Brésilien', symbol: 'R$', flag: '🇧🇷' },
-  { code: 'KRW', name: 'Won Coréen', symbol: '₩', flag: '🇰🇷' },
-  { code: 'SGD', name: 'Dollar Singaporien', symbol: 'S$', flag: '🇸🇬' },
-  { code: 'AUD', name: 'Dollar Australien', symbol: 'A$', flag: '🇦🇺' },
-  { code: 'NZD', name: 'Dollar Néo-zélandais', symbol: 'NZ$', flag: '🇳🇿' },
-  { code: 'SEK', name: 'Couronne Suédoise', symbol: 'kr', flag: '🇸🇪' },
-  { code: 'NOK', name: 'Couronne Norvégienne', symbol: 'kr', flag: '🇳🇴' },
-  { code: 'DKK', name: 'Couronne Danoise', symbol: 'kr', flag: '🇩🇰' },
-  { code: 'ZAR', name: 'Rand Sud-africain', symbol: 'R', flag: '🇿🇦' },
   { code: 'AED', name: 'Dirham Emirati', symbol: 'د.إ', flag: '🇦🇪' },
 ];
 
@@ -83,10 +49,45 @@ export default function SettingsPage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
 
-  // Currency converter state
+  // Currency converter state - Live API
   const [amount, setAmount] = useState('');
   const [fromCurrency, setFromCurrency] = useState('FCFA');
   const [toCurrency, setToCurrency] = useState('USD');
+  const [exchangeRates, setExchangeRates] = useState<Record<string, number>>({});
+  const [ratesLastUpdate, setRatesLastUpdate] = useState<string>('');
+  const [ratesLoading, setRatesLoading] = useState(false);
+
+  // Fetch live exchange rates
+  const fetchExchangeRates = async () => {
+    setRatesLoading(true);
+    try {
+      const response = await fetch('https://open.er-api.com/v6/latest/XOF');
+      const data = await response.json();
+      if (data.result === 'success') {
+        const rates: Record<string, number> = {};
+        SUPPORTED_CURRENCIES.forEach(code => {
+          rates[code] = data.rates[code];
+        });
+        setExchangeRates(rates);
+        const date = new Date(data.time_last_update_utc);
+        setRatesLastUpdate(date.toLocaleString('fr-FR', {
+          day: '2-digit',
+          month: '2-digit',
+          year: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch exchange rates:', error);
+    }
+    setRatesLoading(false);
+  };
+
+  // Fetch rates on mount
+  useEffect(() => {
+    fetchExchangeRates();
+  }, []);
 
   // Category management state
   const [showAddCategory, setShowAddCategory] = useState(false);
@@ -155,14 +156,13 @@ export default function SettingsPage() {
     }
   };
 
-  // Currency converter
+  // Currency converter - using live API rates
   const convertCurrency = () => {
     const numAmount = parseFormattedAmount(amount);
-    if (numAmount === 0) return '0.00';
+    if (numAmount === 0 || !exchangeRates[toCurrency]) return '0.00';
 
-    // Convert to USD first (as base), then to target
-    const inUSD = numAmount * EXCHANGE_RATES[fromCurrency];
-    const result = inUSD / EXCHANGE_RATES[toCurrency];
+    // Convert from FCFA to target currency using live rates
+    const result = numAmount * exchangeRates[toCurrency];
     return result.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
@@ -283,6 +283,15 @@ export default function SettingsPage() {
           Convertissez instantanément entre devises
         </p>
 
+        {/* Live Rate Indicator */}
+        {ratesLastUpdate && (
+          <div className="flex items-center justify-center gap-2 text-xs text-primary/80">
+            <RefreshCw size={12} className={ratesLoading ? 'animate-spin' : ''} />
+            <span>🔴 Taux mis à jour en direct</span>
+            <span className="text-muted-foreground">• {ratesLastUpdate}</span>
+          </div>
+        )}
+
         {/* Amount Input */}
         <div className="space-y-2">
           <label className="text-sm text-muted-foreground">Montant</label>
@@ -372,7 +381,7 @@ export default function SettingsPage() {
         )}
 
         <p className="text-xs text-muted-foreground/60 text-center">
-          💡 Taux de change indicatifs (simulation)
+          💡 Taux de change en temps réel via open.er-api.com
         </p>
       </div>
 
