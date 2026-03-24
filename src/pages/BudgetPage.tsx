@@ -101,23 +101,23 @@ export default function BudgetPage() {
     <div className="space-y-5 animate-fade-in">
       <div className="flex items-center justify-between">
         <h2 className="text-section-title font-bold text-white">Dépenses</h2>
-        <Button 
-          size="sm" 
-          onClick={() => setShowForm(!showForm)} 
+        <Button
+          size="sm"
+          onClick={() => setShowForm(!showForm)}
           className="btn-iphone-sm bg-primary text-black hover:bg-primary/90 gap-2"
         >
           <Plus size={18} /> Dépense
         </Button>
       </div>
 
-      {/* Prediction - Glassmorphism */}
+      {/* Total des dépenses - Glassmorphism */}
       <div className="glass-card p-5">
         <div className="flex items-center gap-2 mb-2">
           <TrendingDown size={20} className="text-warning" />
-          <span className="text-sm font-medium text-muted-foreground">Prédiction fin de mois</span>
+          <span className="text-sm font-medium text-muted-foreground">Total des dépenses ce mois</span>
         </div>
         <p className="text-financial font-bold text-expense">{formatFCFA(predicted)}</p>
-        <p className="text-sm text-muted-foreground mt-1">de dépenses totales estimées au rythme actuel</p>
+        <p className="text-sm text-muted-foreground mt-1">somme de toutes vos dépenses du mois</p>
       </div>
 
       {/* Checklist Accordion - Glassmorphism */}
@@ -163,9 +163,8 @@ export default function BudgetPage() {
                 {expenses.map(tx => (
                   <label
                     key={tx.id}
-                    className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${
-                      tx.isPaid ? 'glass bg-income/5' : 'glass hover:bg-white/5'
-                    }`}
+                    className={`flex items-center gap-4 p-4 rounded-xl cursor-pointer transition-all ${tx.isPaid ? 'glass bg-income/5' : 'glass hover:bg-white/5'
+                      }`}
                   >
                     <input
                       type="checkbox"
@@ -195,60 +194,59 @@ export default function BudgetPage() {
       {/* Form - iPhone keyboard optimized - Glassmorphism */}
       {showForm && (
         <div className="glass-card p-5 space-y-4 animate-scale-in">
-          <Input 
+          <Input
             ref={(el) => {
               if (el) inputRefs.current.set('source', el);
               registerInput(el);
             }}
-            placeholder="Libellé (ex: Loyer mars)" 
-            value={source} 
-            onChange={e => setSource(e.target.value)} 
+            placeholder="Libellé (ex: Loyer mars)"
+            value={source}
+            onChange={e => setSource(e.target.value)}
             className="input-iphone bg-secondary border-none"
             onFocus={() => registerInput(inputRefs.current.get('source') || null)}
           />
-          <Input 
+          <Input
             ref={(el) => {
               if (el) inputRefs.current.set('amount', el);
               registerInput(el);
             }}
             type="text"
             inputMode="numeric"
-            placeholder="Montant (FCFA)" 
-            value={amount} 
-            onChange={handleAmountChange} 
+            placeholder="Montant (FCFA)"
+            value={amount}
+            onChange={handleAmountChange}
             className="input-iphone bg-secondary border-none"
             onFocus={() => registerInput(inputRefs.current.get('amount') || null)}
           />
-          
+
           {/* Category Grid - Scrollable */}
           <div className="grid grid-cols-4 gap-2 max-h-[140px] overflow-y-auto pb-2">
             {categories.map(cat => (
               <button
                 key={cat.id}
                 onClick={() => setCategory(cat.id)}
-                className={`py-3 px-2 rounded-xl text-xs font-medium transition-all ${
-                  category === cat.id 
-                    ? 'bg-primary text-black shadow-lg' 
+                className={`py-3 px-2 rounded-xl text-xs font-medium transition-all ${category === cat.id
+                    ? 'bg-primary text-black shadow-lg'
                     : 'bg-secondary text-muted-foreground'
-                }`}
+                  }`}
               >
                 {cat.name}
               </button>
             ))}
           </div>
-          
-          <Input 
+
+          <Input
             ref={(el) => {
               if (el) inputRefs.current.set('date', el);
               registerInput(el);
             }}
-            type="date" 
-            value={date} 
-            onChange={e => setDate(e.target.value)} 
+            type="date"
+            value={date}
+            onChange={e => setDate(e.target.value)}
             className="input-iphone bg-secondary border-none"
             onFocus={() => registerInput(inputRefs.current.get('date') || null)}
           />
-          
+
           <Button onClick={handleSubmit} className="btn-iphone w-full bg-primary text-black hover:bg-primary/90 gap-2">
             <Check size={18} /> Confirmer
           </Button>
@@ -312,17 +310,15 @@ export default function BudgetPage() {
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => togglePaid(tx.id)}
-                    className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all ${
-                      tx.isPaid 
-                        ? 'bg-income border-income text-black' 
+                    className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all ${tx.isPaid
+                        ? 'bg-income border-income text-black'
                         : 'border-muted-foreground/30 hover:border-primary'
-                    }`}
+                      }`}
                   >
                     {tx.isPaid && <Check size={16} />}
                   </button>
-                  <div className={`w-11 h-11 rounded-full flex items-center justify-center ${
-                    tx.isPaid ? 'bg-income/10' : 'bg-expense/15'
-                  }`}>
+                  <div className={`w-11 h-11 rounded-full flex items-center justify-center ${tx.isPaid ? 'bg-income/10' : 'bg-expense/15'
+                    }`}>
                     <ArrowDownRight size={20} className={tx.isPaid ? 'text-income' : 'text-expense'} />
                   </div>
                   <div>
@@ -336,8 +332,8 @@ export default function BudgetPage() {
                   <span className={`text-lg font-bold ${tx.isPaid ? 'text-income' : 'text-expense'}`}>
                     {tx.isPaid ? '✓ ' : '-'}{formatFCFA(tx.amount)}
                   </span>
-                  <button 
-                    onClick={() => removeTransaction(tx.id)} 
+                  <button
+                    onClick={() => removeTransaction(tx.id)}
                     className="w-9 h-9 rounded-full glass flex items-center justify-center text-muted-foreground hover:text-expense transition-colors"
                   >
                     <Trash2 size={16} />

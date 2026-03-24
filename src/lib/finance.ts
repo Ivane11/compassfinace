@@ -163,26 +163,13 @@ export function predictEndOfMonth(txs: Transaction[]): number {
   const now = new Date();
   const year = now.getFullYear();
   const month = now.getMonth();
-  const dayOfMonth = now.getDate();
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const remaining = daysInMonth - dayOfMonth;
 
+  // Get only current month's expenses
   const monthTxs = monthlyTransactions(txs, year, month);
   const monthExpenses = totalExpenses(monthTxs);
 
-  // If no expenses in current month, return 0
-  if (monthExpenses === 0) {
-    return 0;
-  }
-
-  // Calculate daily average based on actual expenses
-  const dailyAvg = dayOfMonth > 0 ? monthExpenses / dayOfMonth : 0;
-  
-  // Project total for the month based on current daily average
-  // This assumes expenses will continue at the same rate
-  const projected = dailyAvg * daysInMonth;
-
-  return Math.round(projected);
+  // Return only the actual expenses for this month (no projection)
+  return monthExpenses;
 }
 
 export function monthlyComparison(txs: Transaction[]): { month: string; income: number; expenses: number }[] {
