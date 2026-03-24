@@ -12,24 +12,21 @@ export default function IntroPage({ onComplete }: IntroPageProps) {
     const [particles, setParticles] = useState<Array<{ id: number; left: number; delay: number; duration: number; size: number }>>([]);
 
     useEffect(() => {
-        // Generate random particles
-        const newParticles = Array.from({ length: 20 }, (_, i) => ({
+        // Generate fewer particles for faster loading
+        const newParticles = Array.from({ length: 5 }, (_, i) => ({
             id: i,
             left: Math.random() * 100,
-            delay: Math.random() * 5,
-            duration: 5 + Math.random() * 10,
-            size: 2 + Math.random() * 4,
+            delay: Math.random() * 2,
+            duration: 3 + Math.random() * 4,
+            size: 2 + Math.random() * 2,
         }));
         setParticles(newParticles);
 
-        // Show content after animation starts
-        const timer1 = setTimeout(() => setShowContent(true), 300);
-        const timer2 = setTimeout(() => setShowButton(true), 1500);
+        // Show content and button immediately
+        setShowContent(true);
+        setShowButton(true);
 
-        return () => {
-            clearTimeout(timer1);
-            clearTimeout(timer2);
-        };
+        return () => {};
     }, []);
 
     const handleGetStarted = () => {
@@ -92,60 +89,14 @@ export default function IntroPage({ onComplete }: IntroPageProps) {
                 ))}
             </div>
 
-            {/* Central Glow Effects */}
+            {/* Central Glow Effect - Simplified */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                {/* Outer glow ring */}
+                {/* Single glow ring */}
                 <div
-                    className="absolute w-80 h-80 rounded-full animate-pulse"
+                    className="absolute w-64 h-64 rounded-full animate-pulse"
                     style={{
                         background: `radial-gradient(circle, ${styles.primaryGlow} 0%, transparent 70%)`,
-                        animation: 'pulse-glow 3s ease-in-out infinite',
                     }}
-                />
-                {/* Inner glow ring */}
-                <div
-                    className="absolute w-48 h-48 rounded-full animate-float"
-                    style={{
-                        background: `radial-gradient(circle, ${styles.secondaryGlow} 0%, transparent 70%)`,
-                    }}
-                />
-            </div>
-
-            {/* Orbiting Elements */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                {/* Orbit 1 */}
-                <div className="relative w-80 h-80">
-                    <div
-                        className="absolute w-4 h-4 rounded-full bg-white/30 animate-orbit"
-                        style={{
-                            boxShadow: `0 0 20px ${styles.primaryGlow}`,
-                        }}
-                    />
-                </div>
-                {/* Orbit 2 */}
-                <div className="absolute w-64 h-64">
-                    <div
-                        className="absolute w-3 h-3 rounded-full bg-white/20 animate-orbit-reverse"
-                        style={{
-                            boxShadow: `0 0 15px ${styles.secondaryGlow}`,
-                        }}
-                    />
-                </div>
-            </div>
-
-            {/* Ripple Effects */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div
-                    className="w-40 h-40 rounded-full border border-white/10 animate-ripple"
-                    style={{ animationDelay: '0s' }}
-                />
-                <div
-                    className="absolute w-40 h-40 rounded-full border border-white/10 animate-ripple"
-                    style={{ animationDelay: '0.5s' }}
-                />
-                <div
-                    className="absolute w-40 h-40 rounded-full border border-white/10 animate-ripple"
-                    style={{ animationDelay: '1s' }}
                 />
             </div>
 
@@ -153,8 +104,8 @@ export default function IntroPage({ onComplete }: IntroPageProps) {
             <div className="relative z-10 flex flex-col items-center justify-center flex-1">
                 {/* Logo Icon */}
                 <div
-                    className={`relative mb-8 opacity-0 ${showContent ? 'animate-slide-in-up' : ''}`}
-                    style={{ animationDelay: '0.3s', animationFillMode: 'forwards' }}
+                    className={`relative mb-6 opacity-0 ${showContent ? 'animate-slide-in-up' : ''}`}
+                    style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}
                 >
                     {/* Background glow */}
                     <div
@@ -164,11 +115,11 @@ export default function IntroPage({ onComplete }: IntroPageProps) {
                         }}
                     />
                     {/* Icon container */}
-                    <div className="relative w-24 h-24 rounded-3xl glass-card flex items-center justify-center">
+                    <div className="relative w-20 h-20 rounded-3xl glass-card flex items-center justify-center">
                         <svg
                             viewBox="0 0 24 24"
                             fill="none"
-                            className="w-14 h-14"
+                            className="w-12 h-12"
                             style={{
                                 filter: `drop-shadow(0 0 10px ${styles.primaryGlow})`,
                             }}
@@ -205,8 +156,8 @@ export default function IntroPage({ onComplete }: IntroPageProps) {
                 <h1
                     className="text-4xl font-black tracking-tight text-white mb-2 opacity-0"
                     style={{
-                        animation: showContent ? 'slide-in-up 0.8s ease-out forwards' : 'none',
-                        animationDelay: '0.5s',
+                        animation: showContent ? 'slide-in-up 0.5s ease-out forwards' : 'none',
+                        animationDelay: '0.2s',
                         animationFillMode: 'forwards',
                     }}
                 >
@@ -217,8 +168,8 @@ export default function IntroPage({ onComplete }: IntroPageProps) {
                 <p
                     className="text-lg text-muted-foreground opacity-0"
                     style={{
-                        animation: showContent ? 'slide-in-up 0.8s ease-out forwards' : 'none',
-                        animationDelay: '0.7s',
+                        animation: showContent ? 'slide-in-up 0.5s ease-out forwards' : 'none',
+                        animationDelay: '0.3s',
                         animationFillMode: 'forwards',
                     }}
                 >
@@ -227,11 +178,11 @@ export default function IntroPage({ onComplete }: IntroPageProps) {
 
                 {/* Futuristic accent line */}
                 <div
-                    className="mt-6 w-24 h-1 rounded-full opacity-0"
+                    className="mt-4 w-20 h-1 rounded-full opacity-0"
                     style={{
                         background: `linear-gradient(90deg, transparent, ${styles.primaryGlow}, transparent)`,
-                        animation: showContent ? 'slide-in-up 0.8s ease-out forwards' : 'none',
-                        animationDelay: '0.9s',
+                        animation: showContent ? 'slide-in-up 0.5s ease-out forwards' : 'none',
+                        animationDelay: '0.35s',
                         animationFillMode: 'forwards',
                     }}
                 />
@@ -239,11 +190,11 @@ export default function IntroPage({ onComplete }: IntroPageProps) {
                 {/* Get Started Button */}
                 <button
                     onClick={handleGetStarted}
-                    className={`mt-12 px-10 py-4 rounded-full font-bold text-lg text-black transition-all duration-300 opacity-0 ${showButton ? 'animate-slide-in-up' : ''
+                    className={`mt-10 px-10 py-4 rounded-full font-bold text-lg text-black transition-all duration-300 opacity-0 ${showButton ? 'animate-slide-in-up' : ''
                         }`}
                     style={{
                         backgroundColor: 'hsl(var(--primary))',
-                        animationDelay: '1.2s',
+                        animationDelay: '0.4s',
                         animationFillMode: 'forwards',
                         boxShadow: `0 0 30px ${styles.primaryGlow}`,
                     }}
@@ -258,18 +209,6 @@ export default function IntroPage({ onComplete }: IntroPageProps) {
                 >
                     Commencer
                 </button>
-
-                {/* Version indicator */}
-                <p
-                    className="mt-8 text-xs text-muted-foreground/50 opacity-0"
-                    style={{
-                        animation: showContent ? 'fade-in-scale 0.6s ease-out forwards' : 'none',
-                        animationDelay: '1.5s',
-                        animationFillMode: 'forwards',
-                    }}
-                >
-                    v1.0 • Powered by AI
-                </p>
             </div>
         </div>
     );
