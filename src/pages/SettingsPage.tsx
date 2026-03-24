@@ -77,7 +77,7 @@ export default function SettingsPage() {
   const [ratesLastUpdate, setRatesLastUpdate] = useState<string>('');
   const [ratesLoading, setRatesLoading] = useState(false);
 
-  // Fetch live exchange rates from exchangerate-api.com (XOF base)
+  // Fetch live exchange rates from exchangerate-api.com (USD base)
   const fetchExchangeRates = async () => {
     // Check cache first
     const cached = getCachedRates();
@@ -95,13 +95,17 @@ export default function SettingsPage() {
 
     setRatesLoading(true);
     try {
-      const response = await fetch(`https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/latest/XOF`);
+      // API returns USD-based rates
+      const response = await fetch(`https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/latest/USD`);
       const data = await response.json();
       if (data.result === 'success') {
-        // API returns XOF-based rates directly
+        // XOF rate: 565.6414 XOF = 1 USD → 1 XOF = 1/565.6414 USD ≈ 0.001768 USD
+        const xofRate = data.conversion_rates.XOF; // 565.6414
         const rates: Record<string, number> = {};
         SUPPORTED_CURRENCIES.forEach(code => {
-          rates[code] = data.conversion_rates[code];
+          // Convert from XOF to target: 1 XOF * (1/USD_rate) * (target_per_USD)
+          // Simplified: (1 / xofRate) * data.conversion_rates[code]
+          rates[code] = data.conversion_rates[code] / xofRate;
         });
         const timestamp = Date.now();
         setExchangeRates(rates);
