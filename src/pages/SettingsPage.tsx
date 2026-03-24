@@ -11,7 +11,7 @@ import { RotateCcw, Info, Save, Plus, Trash2, Edit3, X, Check, User, Wallet, Tag
 const EXCHANGE_API_KEY = '80624c26ecd6f0ef1a4dc6be';
 const SUPPORTED_CURRENCIES = ['USD', 'EUR', 'GBP', 'CAD', 'CNY', 'AED'];
 const RATES_CACHE_KEY = 'cashcompass_exchange_rates';
-const CACHE_DURATION = 60 * 60 * 1000; // 1 hour in ms
+const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours in ms (daily refresh)
 
 const CURRENCIES = [
   { code: 'FCFA', name: 'Franc CFA (XOF)', symbol: 'FCFA', flag: '🌍' },
@@ -77,9 +77,9 @@ export default function SettingsPage() {
   const [ratesLastUpdate, setRatesLastUpdate] = useState<string>('');
   const [ratesLoading, setRatesLoading] = useState(false);
 
-  // Fetch live exchange rates from exchangerate-api.com (USD base)
+  // Fetch live exchange rates from exchangerate-api.com (XOF base)
   const fetchExchangeRates = async () => {
-    // Check cache first
+    // Check cache first (daily refresh)
     const cached = getCachedRates();
     if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
       setExchangeRates(cached.rates);
@@ -95,17 +95,14 @@ export default function SettingsPage() {
 
     setRatesLoading(true);
     try {
-      // API returns USD-based rates
-      const response = await fetch(`https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/latest/USD`);
+      // API returns XOF-based rates directly
+      const response = await fetch(`https://v6.exchangerate-api.com/v6/${EXCHANGE_API_KEY}/latest/XOF`);
       const data = await response.json();
       if (data.result === 'success') {
-        // XOF rate: 565.6414 XOF = 1 USD → 1 XOF = 1/565.6414 USD ≈ 0.001768 USD
-        const xofRate = data.conversion_rates.XOF; // 565.6414
+        // API returns direct XOF rates (1 XOF = 0.00163 USD, etc.)
         const rates: Record<string, number> = {};
         SUPPORTED_CURRENCIES.forEach(code => {
-          // Convert from XOF to target: 1 XOF * (1/USD_rate) * (target_per_USD)
-          // Simplified: (1 / xofRate) * data.conversion_rates[code]
-          rates[code] = data.conversion_rates[code] / xofRate;
+          rates[code] = data.conversion_rates[code];
         });
         const timestamp = Date.now();
         setExchangeRates(rates);
@@ -208,18 +205,18 @@ export default function SettingsPage() {
     if (numAmount === 0 || !exchangeRates[toCurrency]) return '0.00';
 
     // Convert from FCFA to target currency: Montant_XOF * Taux_Devise
-    // The API returns how many units of target currency per 1 XOF
+    // The API returns direct rate (1 XOF = 0.00163 USD)
     const result = numAmount * exchangeRates[toCurrency];
-
-    // Always show 2 decimal places for USD, EUR, GBP, etc.
-    return result.toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    
+    // Always show 2 decimal places
+    return result.toFixed(2);
   };
 
   // Get the current exchange rate for display
   const getCurrentRate = () => {
     if (!exchangeRates[toCurrency]) return '';
     const rate = exchangeRates[toCurrency];
-    return `1 000 FCFA = ${(1000 * rate).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${toCurrency}`;
+    return `Taux : 1 FCFA = ${rate.toFixed(5)} ${toCurrency}`;
   };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
