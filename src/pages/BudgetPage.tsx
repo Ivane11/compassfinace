@@ -1,0 +1,260 @@
+import { useState, useRef } from 'react';
+import { useFinance } from '@/hooks/useFinance';
+import { useKeyboardSafeArea } from '@/hooks/useKeyboardSafeArea';
+import { Transaction, Recurrence, CATEGORY_LABELS } from '@/lib/types';
+import { generateId, formatFCFA, totalIncome, totalExpenses, categorySpending, monthlyComparison, predictEndOfMonth, autoBudget, parseFormattedAmount, formatAmount } from '@/lib/finance';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Plus, Trash2, ArrowDownRight, TrendingDown, Check } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Cell } from 'recharts';
+
+// SVG Progress Ring
+function ProgressRing({ percent, color, size = 64, strokeWidth = 5 }: { percent: number; color: string; size?: number; strokeWidth?: number }) {
+  const r = (size - strokeWidth) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (Math.min(percent, 100) / 100) * circ;
+  return (
+    <svg width={size} height={size} className="-rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="hsl(0,0%,14%)" strokeWidth={strokeWidth} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={strokeWidth} strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round" className="transition-all duration-700" />
+    </svg>
+  );
+}
+
+export default function BudgetPage() {
+  const { transactions, addTransaction, removeTransaction, categories } = useFinance();
+  const [showForm, setShowForm] = useState(false);
+  const [source, setSource] = useState('');
+  const [amount, setAmount] = useState('');
+  const [category, setCategory] = useState('autre');
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [recurrence, setRecurrence] = useState<Recurrence>('unique');
+
+  // Keyboard handling for iPhone
+  const { registerInput } = useKeyboardSafeArea();
+  const inputRefs = useRef<Map<string, HTMLInputElement>>(new Map());
+
+  const expenses = transactions.filter(t => t.type === 'expense');
+  const inc = totalIncome(transactions);
+  const spending = categorySpending(transactions);
+  const comparison = monthlyComparison(transactions);
+  const predicted = predictEndOfMonth(transactions);
+  const budget = autoBudget(inc);
+  const needsBudget = budget.needs;
+
+  const handleSubmit = () => {
+    if (!source || !amount || Number(amount) <= 0) return;
+    const tx: Transaction = {
+      id: generateId(),
+      type: 'expense',
+      source,
+      amount: parseFormattedAmount(amount),
+      category,
+      date,
+      recurrence,
+      createdAt: new Date().toISOString(),
+    };
+    addTransaction(tx);
+    setSource('');
+    setAmount('');
+    setShowForm(false);
+  };
+
+  // Format amount input with spaces for thousands
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/[^\d]/g, '');
+    if (raw) {
+      setAmount(formatAmount(parseInt(raw, 10)));
+    } else {
+      setAmount('');
+    }
+  };
+
+  const categoryColors: Record<string, string> = {
+    loyer: 'hsl(0,72%,70%)',
+    internet: 'hsl(210,80%,65%)',
+    transport: 'hsl(40,96%,64%)',
+    nourriture: 'hsl(136,66%,50%)',
+    sante: 'hsl(330,70%,60%)',
+    education: 'hsl(270,60%,65%)',
+    loisirs: 'hsl(180,60%,50%)',
+    vetements: 'hsl(30,80%,60%)',
+    epargne: 'hsl(150,60%,50%)',
+    autre: 'hsl(0,0%,50%)',
+  };
+
+  // Get label for a category (supports custom categories)
+  const getCategoryLabel = (catId: string) => {
+    const customCat = categories.find(c => c.id === catId);
+    if (customCat) return customCat.name;
+    return CATEGORY_LABELS[catId] || catId;
+  };
+
+  return (
+    <div className="space-y-5 animate-fade-in">
+      <div className="flex items-center justify-between">
+        <h2 className="text-section-title font-bold text-white">Dépenses</h2>
+        <Button 
+          size="sm" 
+          onClick={() => setShowForm(!showForm)} 
+          className="btn-iphone-sm bg-primary text-black hover:bg-primary/90 gap-2"
+        >
+          <Plus size={18} /> Dépense
+        </Button>
+      </div>
+
+      {/* Prediction - Glassmorphism */}
+      <div className="glass-card p-5">
+        <div className="flex items-center gap-2 mb-2">
+          <TrendingDown size={20} className="text-warning" />
+          <span className="text-sm font-medium text-muted-foreground">Prédiction fin de mois</span>
+        </div>
+        <p className="text-financial font-bold text-expense">{formatFCFA(predicted)}</p>
+        <p className="text-sm text-muted-foreground mt-1">de dépenses totales estimées au rythme actuel</p>
+      </div>
+
+      {/* Form - iPhone keyboard optimized - Glassmorphism */}
+      {showForm && (
+        <div className="glass-card p-5 space-y-4 animate-scale-in">
+          <Input 
+            ref={(el) => {
+              if (el) inputRefs.current.set('source', el);
+              registerInput(el);
+            }}
+            placeholder="Libellé (ex: Loyer mars)" 
+            value={source} 
+            onChange={e => setSource(e.target.value)} 
+            className="input-iphone bg-secondary border-none"
+            onFocus={() => registerInput(inputRefs.current.get('source') || null)}
+          />
+          <Input 
+            ref={(el) => {
+              if (el) inputRefs.current.set('amount', el);
+              registerInput(el);
+            }}
+            type="text"
+            inputMode="numeric"
+            placeholder="Montant (FCFA)" 
+            value={amount} 
+            onChange={handleAmountChange} 
+            className="input-iphone bg-secondary border-none"
+            onFocus={() => registerInput(inputRefs.current.get('amount') || null)}
+          />
+          
+          {/* Category Grid - Scrollable */}
+          <div className="grid grid-cols-4 gap-2 max-h-[140px] overflow-y-auto pb-2">
+            {categories.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setCategory(cat.id)}
+                className={`py-3 px-2 rounded-xl text-xs font-medium transition-all ${
+                  category === cat.id 
+                    ? 'bg-primary text-black shadow-lg' 
+                    : 'bg-secondary text-muted-foreground'
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
+          
+          <Input 
+            ref={(el) => {
+              if (el) inputRefs.current.set('date', el);
+              registerInput(el);
+            }}
+            type="date" 
+            value={date} 
+            onChange={e => setDate(e.target.value)} 
+            className="input-iphone bg-secondary border-none"
+            onFocus={() => registerInput(inputRefs.current.get('date') || null)}
+          />
+          
+          <Button onClick={handleSubmit} className="btn-iphone w-full bg-primary text-black hover:bg-primary/90 gap-2">
+            <Check size={18} /> Confirmer
+          </Button>
+        </div>
+      )}
+
+      {/* Progress Rings - Glassmorphism */}
+      {spending.length > 0 && (
+        <div className="glass-card p-5">
+          <h3 className="text-card-title font-semibold text-white mb-4">Dépenses par catégorie</h3>
+          <div className="grid grid-cols-3 gap-5">
+            {spending.sort((a, b) => b.spent - a.spent).slice(0, 6).map(s => {
+              const pct = needsBudget > 0 ? (s.spent / needsBudget) * 100 : 0;
+              const color = categoryColors[s.category] || 'hsl(0,0%,50%)';
+              return (
+                <div key={s.category} className="flex flex-col items-center">
+                  <div className="relative">
+                    <ProgressRing percent={pct} color={color} size={70} strokeWidth={6} />
+                    <span className="absolute inset-0 flex items-center justify-center text-sm font-bold">{Math.round(pct)}%</span>
+                  </div>
+                  <p className="text-sm font-medium mt-2 text-white">{getCategoryLabel(s.category)}</p>
+                  <p className="text-xs text-muted-foreground">{formatFCFA(s.spent)}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Monthly Comparison - Glassmorphism */}
+      <div className="glass-card p-5">
+        <h3 className="text-card-title font-semibold text-white mb-4">Comparaison mensuelle</h3>
+        <div className="h-48">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={comparison}>
+              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} />
+              <YAxis hide />
+              <Tooltip
+                contentStyle={{ background: 'hsl(var(--card))', border: '1px solid var(--glass-border)', borderRadius: 16, fontSize: 14 }}
+                formatter={(v: number, name: string) => [formatFCFA(v), name === 'income' ? 'Revenus' : 'Dépenses']}
+              />
+              <Bar dataKey="income" fill="hsl(var(--income))" radius={[6, 6, 0, 0]} />
+              <Bar dataKey="expenses" fill="hsl(var(--expense))" radius={[6, 6, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* Expense List - Glassmorphism */}
+      <div className="glass-card p-5">
+        <h3 className="text-card-title font-semibold text-white mb-4">Toutes les dépenses</h3>
+        {expenses.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-body text-muted-foreground">Aucune dépense</p>
+            <p className="text-sm text-muted-foreground/70 mt-1">Ajoutez vos dépenses pour suivre votre budget</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {expenses.map(tx => (
+              <div key={tx.id} className="flex items-center justify-between p-3 rounded-xl glass">
+                <div className="flex items-center gap-3">
+                  <div className="w-11 h-11 rounded-full bg-expense/15 flex items-center justify-center">
+                    <ArrowDownRight size={20} className="text-expense" />
+                  </div>
+                  <div>
+                    <p className="text-body font-medium text-white">{tx.source}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {getCategoryLabel(tx.category || 'autre')} · {new Date(tx.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-lg font-bold text-expense">-{formatFCFA(tx.amount)}</span>
+                  <button 
+                    onClick={() => removeTransaction(tx.id)} 
+                    className="w-9 h-9 rounded-full glass flex items-center justify-center text-muted-foreground hover:text-expense transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,85 @@
+/* App-specific styles for iPhone 13 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Smooth transitions */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Prevent overscroll bounce on iOS */
+html,
+body {
+  overscroll-behavior: none;
+  height: 100%;
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
+
+/* iOS input styling */
+input,
+textarea,
+select {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* iPhone 13 form inputs - prevent zoom on focus */
+@media screen and (max-width: 480px) {
+
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+
+  input:focus,
+  select:focus,
+  textarea:focus {
+    font-size: 17px !important;
+  }
+}
+
+/* Custom selection color */
+::selection {
+  background-color: hsl(136 66% 50% / 0.3);
+  color: white;
+}
+
+/* iPhone 13 notch and Dynamic Island safe area */
+@supports (padding: max(0px)) {
+  .safe-area-top {
+    padding-top: max(12px, env(safe-area-inset-top));
+  }
+
+  .safe-area-bottom {
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+}
+
+/* Animations */
+@keyframes bounce-in {
+  0% {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+
+  50% {
+    transform: scale(1.02);
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.3s ease-out forwards;
+}
