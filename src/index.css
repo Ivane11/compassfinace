@@ -224,11 +224,11 @@
 
   /* Buttons - Minimum 54px height for touch */
   .btn-iphone {
-    @apply min-h-[54px] px-6 py-3 text-base font-semibold rounded-2xl;
+    @apply min-h-[54px] px-6 py-3 text-base font-semibold rounded-2xl active:scale-[0.98] transition-transform;
   }
 
   .btn-iphone-sm {
-    @apply min-h-[44px] px-4 py-2.5 text-sm font-medium rounded-xl;
+    @apply min-h-[44px] px-4 py-2.5 text-sm font-medium rounded-xl active:scale-[0.96] transition-transform;
   }
 
   /* Input fields - iPhone optimized */

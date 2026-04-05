@@ -54,6 +54,7 @@ export default function BudgetPage() {
       date,
       recurrence,
       createdAt: new Date().toISOString(),
+      isPaid: false,
     };
     addTransaction(tx);
     setSource('');
@@ -112,20 +113,34 @@ export default function BudgetPage() {
 
       {/* Total des dépenses - Glassmorphism */}
       <div className="glass-card p-5">
-        <div className="flex items-center gap-2 mb-2">
-          <TrendingDown size={20} className="text-warning" />
-          <span className="text-sm font-medium text-muted-foreground">Total des dépenses ce mois</span>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <TrendingDown size={20} className="text-warning" />
+            <span className="text-sm font-medium text-muted-foreground">Synthèse des dépenses</span>
+          </div>
         </div>
-        <p className="text-financial font-bold text-expense">{formatFCFA(predicted)}</p>
-        <p className="text-sm text-muted-foreground mt-1">somme de toutes vos dépenses du mois</p>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="bg-expense/10 border border-expense/20 p-3 rounded-xl">
+            <p className="text-xs text-expense/80 uppercase font-bold tracking-wider mb-1">Total Payé</p>
+            <p className="text-2xl font-bold text-expense">{formatFCFA(predicted)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Dépenses effectuées</p>
+          </div>
+          <div className="bg-warning/10 border border-warning/20 p-3 rounded-xl">
+            <p className="text-xs text-warning/80 uppercase font-bold tracking-wider mb-1">Prévu</p>
+            <p className="text-2xl font-bold text-warning">{formatFCFA(unpaidAmount)}</p>
+            <p className="text-xs text-muted-foreground mt-1">À payer ce mois-ci</p>
+          </div>
+        </div>
       </div>
 
       {/* Checklist Accordion - Glassmorphism */}
       {expenses.length > 0 && (
         <div className="glass-card overflow-hidden">
           <button
+            type="button"
             onClick={() => setShowChecklist(!showChecklist)}
-            className="w-full flex items-center justify-between p-5 text-left hover:bg-white/5 transition-colors"
+            className="w-full flex items-center justify-between p-5 text-left hover:bg-white/5 transition-colors active:bg-white/10"
           >
             <div className="flex items-center gap-3">
               <ListChecks size={22} className="text-primary" />
@@ -224,8 +239,9 @@ export default function BudgetPage() {
             {categories.map(cat => (
               <button
                 key={cat.id}
+                type="button"
                 onClick={() => setCategory(cat.id)}
-                className={`py-3 px-2 rounded-xl text-xs font-medium transition-all ${category === cat.id
+                className={`py-3 px-2 rounded-xl text-xs font-medium transition-all active:scale-95 ${category === cat.id
                     ? 'bg-primary text-black shadow-lg'
                     : 'bg-secondary text-muted-foreground'
                   }`}
@@ -309,13 +325,14 @@ export default function BudgetPage() {
               <div key={tx.id} className="flex items-center justify-between p-3 rounded-xl glass">
                 <div className="flex items-center gap-3">
                   <button
+                    type="button"
                     onClick={() => togglePaid(tx.id)}
-                    className={`w-8 h-8 rounded-lg border-2 flex items-center justify-center transition-all ${tx.isPaid
+                    className={`w-10 h-10 rounded-xl border-2 flex items-center justify-center transition-all active:scale-90 ${tx.isPaid
                         ? 'bg-income border-income text-black'
                         : 'border-muted-foreground/30 hover:border-primary'
                       }`}
                   >
-                    {tx.isPaid && <Check size={16} />}
+                    {tx.isPaid && <Check size={18} />}
                   </button>
                   <div className={`w-11 h-11 rounded-full flex items-center justify-center ${tx.isPaid ? 'bg-income/10' : 'bg-expense/15'
                     }`}>
@@ -333,10 +350,11 @@ export default function BudgetPage() {
                     {tx.isPaid ? '✓ ' : '-'}{formatFCFA(tx.amount)}
                   </span>
                   <button
+                    type="button"
                     onClick={() => removeTransaction(tx.id)}
-                    className="w-9 h-9 rounded-full glass flex items-center justify-center text-muted-foreground hover:text-expense transition-colors"
+                    className="w-10 h-10 p-2 rounded-full glass flex items-center justify-center text-muted-foreground hover:text-expense transition-colors active:scale-90"
                   >
-                    <Trash2 size={16} />
+                    <Trash2 size={18} />
                   </button>
                 </div>
               </div>

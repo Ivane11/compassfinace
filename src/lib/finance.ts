@@ -95,7 +95,11 @@ export function totalIncome(txs: Transaction[]): number {
 }
 
 export function totalExpenses(txs: Transaction[]): number {
-  return txs.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
+  return txs.filter(t => t.type === 'expense' && t.isPaid !== false).reduce((s, t) => s + t.amount, 0);
+}
+
+export function plannedExpenses(txs: Transaction[]): number {
+  return txs.filter(t => t.type === 'expense' && t.isPaid === false).reduce((s, t) => s + t.amount, 0);
 }
 
 export function balance(txs: Transaction[]): number {
@@ -111,7 +115,8 @@ export function autoBudget(income: number): BudgetAllocation {
 }
 
 export function categorySpending(txs: Transaction[]): CategoryBudget[] {
-  const expenses = txs.filter(t => t.type === 'expense');
+  // Only include paid expenses in category spending
+  const expenses = txs.filter(t => t.type === 'expense' && t.isPaid !== false);
   const map = new Map<string, number>();
   expenses.forEach(t => {
     const cat = t.category || 'autre';
@@ -141,11 +146,15 @@ export function weeklyBalanceData(txs: Transaction[]): { day: string; balance: n
     d.setDate(d.getDate() - i);
     const dayStr = d.toISOString().split('T')[0];
     const dayTxs = txs.filter(t => t.date.startsWith(dayStr));
-    const dayBalance = dayTxs.reduce((s, t) => s + (t.type === 'income' ? t.amount : -t.amount), 0);
+    const dayBalance = dayTxs.reduce((s, t) => {
+      if (t.type === 'income') return s + t.amount;
+      if (t.type === 'expense' && t.isPaid !== false) return s - t.amount;
+      return s;
+    }, 0);
     result.push({ day: days[d.getDay()], balance: dayBalance });
   }
 
-  // Make cumulative
+  // Make cumulative using only valid paid transactions for history
   let cumulative = balance(txs.filter(t => {
     const d = new Date(t.date);
     const sevenDaysAgo = new Date(now);

@@ -104,8 +104,12 @@ export default function IntroPage({ onComplete }: IntroPageProps) {
             <div className="relative z-10 flex flex-col items-center justify-center flex-1">
                 {/* Logo Icon */}
                 <div
-                    className={`relative mb-6 opacity-0 ${showContent ? 'animate-slide-in-up' : ''}`}
-                    style={{ animationDelay: '0.1s', animationFillMode: 'forwards' }}
+                    className={`relative mb-6 opacity-0`}
+                    style={
+                        showContent 
+                        ? { animation: 'slide-in-up 0.5s ease-out 0.1s forwards' }
+                        : { opacity: 0 }
+                    }
                 >
                     {/* Background glow */}
                     <div
@@ -155,11 +159,11 @@ export default function IntroPage({ onComplete }: IntroPageProps) {
                 {/* App Name */}
                 <h1
                     className="text-4xl font-black tracking-tight text-white mb-2 opacity-0"
-                    style={{
-                        animation: showContent ? 'slide-in-up 0.5s ease-out forwards' : 'none',
-                        animationDelay: '0.2s',
-                        animationFillMode: 'forwards',
-                    }}
+                    style={
+                        showContent 
+                        ? { animation: 'slide-in-up 0.5s ease-out 0.2s forwards' }
+                        : { opacity: 0 }
+                    }
                 >
                     CashCompass
                 </h1>
@@ -167,11 +171,11 @@ export default function IntroPage({ onComplete }: IntroPageProps) {
                 {/* Tagline */}
                 <p
                     className="text-lg text-muted-foreground opacity-0"
-                    style={{
-                        animation: showContent ? 'slide-in-up 0.5s ease-out forwards' : 'none',
-                        animationDelay: '0.3s',
-                        animationFillMode: 'forwards',
-                    }}
+                    style={
+                        showContent 
+                        ? { animation: 'slide-in-up 0.5s ease-out 0.3s forwards' }
+                        : { opacity: 0 }
+                    }
                 >
                     Navigate Your Finances
                 </p>
@@ -181,22 +185,18 @@ export default function IntroPage({ onComplete }: IntroPageProps) {
                     className="mt-4 w-20 h-1 rounded-full opacity-0"
                     style={{
                         background: `linear-gradient(90deg, transparent, ${styles.primaryGlow}, transparent)`,
-                        animation: showContent ? 'slide-in-up 0.5s ease-out forwards' : 'none',
-                        animationDelay: '0.35s',
-                        animationFillMode: 'forwards',
+                        ...(showContent ? { animation: 'slide-in-up 0.5s ease-out 0.35s forwards' } : { opacity: 0 })
                     }}
                 />
 
                 {/* Get Started Button */}
                 <button
                     onClick={handleGetStarted}
-                    className={`mt-10 px-10 py-4 rounded-full font-bold text-lg text-black transition-all duration-300 opacity-0 ${showButton ? 'animate-slide-in-up' : ''
-                        }`}
+                    className={`mt-10 px-10 py-4 rounded-full font-bold text-lg text-black transition-all duration-300 opacity-0`}
                     style={{
                         backgroundColor: 'hsl(var(--primary))',
-                        animationDelay: '0.4s',
-                        animationFillMode: 'forwards',
                         boxShadow: `0 0 30px ${styles.primaryGlow}`,
+                        ...(showButton ? { animation: 'slide-in-up 0.5s ease-out 0.4s forwards' } : { opacity: 0 })
                     }}
                     onMouseEnter={(e) => {
                         e.currentTarget.style.transform = 'scale(1.05)';
