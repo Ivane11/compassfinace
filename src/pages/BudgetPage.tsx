@@ -123,7 +123,7 @@ export default function BudgetPage() {
         <div className="grid grid-cols-2 gap-4">
           <div className="bg-expense/10 border border-expense/20 p-3 rounded-xl">
             <p className="text-xs text-expense/80 uppercase font-bold tracking-wider mb-1">Total Payé</p>
-            <p className="text-2xl font-bold text-expense">{formatFCFA(predicted)}</p>
+            <p className="text-2xl font-bold text-expense">{formatFCFA(paidAmount)}</p>
             <p className="text-xs text-muted-foreground mt-1">Dépenses effectuées</p>
           </div>
           <div className="bg-warning/10 border border-warning/20 p-3 rounded-xl">
